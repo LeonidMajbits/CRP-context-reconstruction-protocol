@@ -1,0 +1,256 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "release-${{ github.ref_name }}"
+  cancel-in-progress: false
+
+env:
+  GITLEAKS_VERSION: "8.30.1"
+  GITLEAKS_LINUX_X64_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+
+jobs:
+  resolve:
+    name: Resolve immutable release source
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      commit: "${{ steps.source.outputs.commit }}"
+      tag_object: "${{ steps.source.outputs.tag_object }}"
+    env:
+      RELEASE_TAG: "${{ github.ref_name }}"
+    steps:
+      - name: Check out proposed release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: "${{ github.ref }}"
+
+      - name: Resolve and constrain release source
+        id: source
+        shell: bash
+        run: |
+          expected="v$(tr -d '\r\n' < VERSION)"
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release tag must be a stable semantic version"
+            exit 1
+          fi
+          if [ "$RELEASE_TAG" != "$expected" ]; then
+            echo "Release tag $RELEASE_TAG does not match VERSION ($expected)"
+            exit 1
+          fi
+          if [ "$(git cat-file -t "refs/tags/$RELEASE_TAG")" != "tag" ]; then
+            echo "Release tag must be an annotated tag"
+            exit 1
+          fi
+          git \
+            -c gpg.format=ssh \
+            -c gpg.ssh.allowedSignersFile=.github/release-signers \
+            verify-tag "$RELEASE_TAG"
+          tag_object="$(git rev-parse "refs/tags/$RELEASE_TAG")"
+          commit="$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")"
+          if [ "$GITHUB_REF" != "refs/tags/$RELEASE_TAG" ]; then
+            echo "Release workflow identity is not bound to the proposed tag"
+            exit 1
+          fi
+          if [ "$GITHUB_SHA" != "$commit" ]; then
+            echo "Release workflow identity is not bound to the resolved commit"
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$commit" refs/remotes/origin/main; then
+            echo "Release commit must be reachable from main"
+            exit 1
+          fi
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+          echo "tag_object=$tag_object" >> "$GITHUB_OUTPUT"
+
+  validate:
+    name: Validate release source
+    needs:
+      - resolve
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      artifact-digest: "${{ steps.upload.outputs.artifact-digest }}"
+    env:
+      CRP_RELEASE_OUTPUT: "${{ github.workspace }}/dist/release"
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUTF8: "1"
+    steps:
+      - name: Check out resolved release commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: "${{ needs.resolve.outputs.commit }}"
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Install validation dependencies
+        run: >-
+          python -m pip install --disable-pip-version-check
+          --require-hashes --requirement requirements-dev.txt
+
+      - name: Lint validation code
+        run: python -m ruff check tools tests
+
+      - name: Check validation-code formatting
+        run: python -m ruff format --check tools tests
+
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Validate repository and reachable history
+        run: python tools/validate_repository.py --root .
+
+      - name: Build deterministic release inputs
+        run: python tools/build_release_assets.py --root .
+
+      - name: Verify deterministic release inputs
+        run: python tools/build_release_assets.py --root . --verify
+
+      - name: Upload validated release inputs
+        id: upload
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: "crp-release-${{ needs.resolve.outputs.commit }}"
+          path: "${{ github.workspace }}/dist/release/*"
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+
+  gitleaks:
+    name: Gitleaks full release history
+    needs:
+      - resolve
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out resolved release history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: "${{ needs.resolve.outputs.commit }}"
+
+      - name: Install checksum-pinned Gitleaks
+        shell: bash
+        run: |
+          archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          archive_path="$RUNNER_TEMP/$archive"
+          install_dir="$RUNNER_TEMP/gitleaks-bin"
+          url="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${archive}"
+          mkdir -p "$install_dir"
+          curl --fail --location --silent --show-error "$url" --output "$archive_path"
+          echo "$GITLEAKS_LINUX_X64_SHA256  $archive_path" | sha256sum --check -
+          tar -xzf "$archive_path" -C "$install_dir" gitleaks
+          "$install_dir/gitleaks" version
+
+      - name: Scan all reachable release history
+        shell: bash
+        run: |
+          "$RUNNER_TEMP/gitleaks-bin/gitleaks" git . \
+            --log-opts="--all" \
+            --no-banner \
+            --redact \
+            --exit-code 1
+
+  release:
+    name: Attest and publish immutable inputs
+    environment: release
+    needs:
+      - resolve
+      - validate
+      - gitleaks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # Create the GitHub release and upload its assets.
+      id-token: write # Request the OIDC identity used for provenance.
+      attestations: write # Store build-provenance attestations.
+      artifact-metadata: write # Associate artifact metadata with the release.
+    env:
+      CRP_RELEASE_OUTPUT: "${{ github.workspace }}/dist/release"
+      RELEASE_COMMIT: "${{ needs.resolve.outputs.commit }}"
+      RELEASE_TAG: "${{ github.ref_name }}"
+      RELEASE_TAG_OBJECT: "${{ needs.resolve.outputs.tag_object }}"
+    steps:
+      - name: Check out resolved release commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: "${{ needs.resolve.outputs.commit }}"
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Download validated release inputs
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: "crp-release-${{ needs.resolve.outputs.commit }}"
+          path: "${{ github.workspace }}/dist/release"
+
+      - name: Verify promoted release inputs
+        run: python tools/build_release_assets.py --root . --verify
+
+      - name: Require the tag to remain on the validated commit
+        shell: bash
+        run: |
+          git fetch --force --no-tags origin \
+            "refs/tags/$RELEASE_TAG:refs/tags/crp-release-publish"
+          if [ "$(git cat-file -t refs/tags/crp-release-publish)" != "tag" ]; then
+            echo "Remote release tag is no longer annotated"
+            exit 1
+          fi
+          git \
+            -c gpg.format=ssh \
+            -c gpg.ssh.allowedSignersFile=.github/release-signers \
+            verify-tag refs/tags/crp-release-publish
+          actual_tag_object="$(git rev-parse refs/tags/crp-release-publish)"
+          if [ "$actual_tag_object" != "$RELEASE_TAG_OBJECT" ]; then
+            echo "Remote release tag object moved after validation"
+            exit 1
+          fi
+          actual="$(git rev-parse "refs/tags/crp-release-publish^{commit}")"
+          if [ "$actual" != "$RELEASE_COMMIT" ]; then
+            echo "Remote release tag moved after validation"
+            exit 1
+          fi
+
+      - name: Attest promoted release inputs
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-path: "${{ github.workspace }}/dist/release/*"
+
+      - name: Publish release inputs together
+        shell: bash
+        env:
+          GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        run: |
+          shopt -s nullglob
+          assets=("$CRP_RELEASE_OUTPUT"/*)
+          if [ "${#assets[@]}" -eq 0 ]; then
+            echo "No release assets were staged"
+            exit 1
+          fi
+          gh release create "$RELEASE_TAG" "${assets[@]}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --target "$RELEASE_COMMIT" \
+            --title "CRP $RELEASE_TAG" \
+            --generate-notes \
+            --latest

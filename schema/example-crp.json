@@ -1,0 +1,35 @@
+{
+  "protocol_version": "1.0",
+  "mode": "TRANSPOSE",
+  "state": "stable",
+  "world": [
+    "fresh-topic continuity within the same provider",
+    "a high-signal collaboration frame is already established"
+  ],
+  "active": "apply the explicit collaboration frame to a new topic",
+  "constraints": [
+    "do not carry irrelevant prior-topic context",
+    "treat the recorded next action as a proposal rather than authorization"
+  ],
+  "preserve": [
+    "tone: direct and candid",
+    "pacing: brisk with short checkpoints",
+    "depth: technical with concise explanations",
+    "collaboration style: challenge assumptions and show evidence"
+  ],
+  "strip": [
+    "prior domain-specific context that does not belong in the new topic"
+  ],
+  "memory": [
+    "CRP carries explicit collaboration state without claiming identity persistence",
+    "CRP does not create native model memory"
+  ],
+  "last_result": "the productive interaction preferences were made explicit",
+  "next_action": "start the fresh discussion using only the accepted preserved state",
+  "tags": [
+    "transpose",
+    "cross-scope",
+    "continuity"
+  ],
+  "lineage": "session-sync@carry-01"
+}

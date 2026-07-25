@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="860" viewBox="0 0 1280 860" role="img" aria-labelledby="title desc">
+  <title id="title">Context Reconstruction Protocol diagram</title>
+  <desc id="desc">A diagram showing CRP carrying selected working state from a source session, through an optional loader and validated handoff block, to a destination that may use accepted state to resume work. It also lists the eight v1 modes and the CRP trust boundary.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f7f3ec; }
+      .panel { fill: #fffdf9; stroke: #c8b9a6; stroke-width: 2; }
+      .panel-accent { fill: #f4ede4; stroke: #b9935a; stroke-width: 2; }
+      .chip { fill: #efe4d5; stroke: #c8b9a6; stroke-width: 1.5; }
+      .line { stroke: #8a6a45; stroke-width: 3; fill: none; }
+      .title { fill: #1f2933; font-family: Georgia, 'Times New Roman', serif; font-size: 34px; font-weight: 700; }
+      .subtitle { fill: #4b5563; font-family: 'Segoe UI', Arial, sans-serif; font-size: 18px; }
+      .heading { fill: #1f2933; font-family: 'Segoe UI Semibold', 'Segoe UI', Arial, sans-serif; font-size: 24px; }
+      .body { fill: #24323f; font-family: 'Segoe UI', Arial, sans-serif; font-size: 18px; }
+      .small { fill: #4b5563; font-family: 'Segoe UI', Arial, sans-serif; font-size: 16px; }
+      .mono { fill: #16324f; font-family: Consolas, 'Courier New', monospace; font-size: 16px; }
+      .note { fill: #6b4f2a; font-family: 'Segoe UI Semibold', 'Segoe UI', Arial, sans-serif; font-size: 17px; }
+      .chip-text { fill: #24323f; font-family: 'Segoe UI Semibold', 'Segoe UI', Arial, sans-serif; font-size: 15px; }
+    </style>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 z" fill="#8a6a45"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1280" height="860" rx="24"/>
+
+  <text class="title" x="72" y="82">Context Reconstruction Protocol</text>
+  <text class="subtitle" x="72" y="118">An open format for carrying selected working state across sessions, devices, models, and tools.</text>
+
+  <rect class="panel" x="70" y="170" width="320" height="380" rx="24"/>
+  <text class="heading" x="102" y="218">1. Source Session</text>
+  <text class="body" x="102" y="262">Useful working state exists.</text>
+  <text class="small" x="102" y="304">Carry only the state that matters:</text>
+  <text class="body" x="122" y="344">• active context</text>
+  <text class="body" x="122" y="378">• constraints and invariants</text>
+  <text class="body" x="122" y="412">• prior decisions</text>
+  <text class="body" x="122" y="446">• blockers or open questions</text>
+  <text class="body" x="122" y="480">• next action</text>
+  <text class="small" x="102" y="524">The goal is not transcript replay.</text>
+
+  <rect class="panel-accent" x="480" y="150" width="320" height="420" rx="24"/>
+  <text class="heading" x="516" y="198">2. CRP Handoff</text>
+  <text class="body" x="516" y="240">Select → Serialize → Carry</text>
+  <text class="small" x="516" y="282">Optional loader and validated seed:</text>
+  <rect x="516" y="306" width="248" height="62" rx="12" fill="#fff8ef" stroke="#c8b9a6" stroke-width="1.5"/>
+  <text class="body" x="534" y="344">plain-language loader</text>
+  <rect x="516" y="386" width="248" height="128" rx="12" fill="#fff8ef" stroke="#c8b9a6" stroke-width="1.5"/>
+  <text class="mono" x="534" y="408">CRP::HOT-RESUME |</text>
+  <text class="mono" x="534" y="430">state=active |</text>
+  <text class="mono" x="534" y="452">active=resume review |</text>
+  <text class="mono" x="534" y="474">last_result=spec stable |</text>
+  <text class="mono" x="534" y="496">next_action=run checks</text>
+  <text class="small" x="516" y="536">
+    <tspan x="516" dy="0">Seed is one line; shown wrapped.</tspan>
+    <tspan x="516" dy="20">Interoperability requires testing.</tspan>
+  </text>
+
+  <rect class="panel" x="890" y="170" width="320" height="380" rx="24"/>
+  <text class="heading" x="922" y="218">3. Destination Session</text>
+  <text class="body" x="922" y="262">Validate → Reconstruct → Resume</text>
+  <text class="small" x="922" y="304">A consumer may restore accepted:</text>
+  <text class="body" x="942" y="344">• project state</text>
+  <text class="body" x="942" y="378">
+    <tspan x="942" dy="0">• collaboration frame</tspan>
+    <tspan x="962" dy="22">and tone</tspan>
+  </text>
+  <text class="body" x="942" y="426">• constraints</text>
+  <text class="body" x="942" y="458">• prior decisions</text>
+  <text class="body" x="942" y="490">• next-step continuity</text>
+  <text class="small" x="922" y="518">
+    <tspan x="922" dy="0">Receiving policy and current intent</tspan>
+    <tspan x="922" dy="20">remain authoritative.</tspan>
+  </text>
+
+  <path class="line" d="M390 360 C430 360, 445 360, 480 360" marker-end="url(#arrow)"/>
+  <path class="line" d="M800 360 C840 360, 855 360, 890 360" marker-end="url(#arrow)"/>
+
+  <rect class="panel" x="70" y="610" width="1140" height="170" rx="24"/>
+  <text class="heading" x="102" y="658">Official v1 Modes</text>
+  <text class="small" x="102" y="692">Modes describe different handoff situations without granting the carried state special authority.</text>
+
+  <rect class="chip" x="102" y="720" width="130" height="34" rx="17"/>
+  <text class="chip-text" x="121" y="742">HOT-RESUME</text>
+  <rect class="chip" x="246" y="720" width="140" height="34" rx="17"/>
+  <text class="chip-text" x="266" y="742">COLD-RESUME</text>
+  <rect class="chip" x="400" y="720" width="102" height="34" rx="17"/>
+  <text class="chip-text" x="427" y="742">HANDOFF</text>
+  <rect class="chip" x="516" y="720" width="122" height="34" rx="17"/>
+  <text class="chip-text" x="546" y="742">TRANSPOSE</text>
+  <rect class="chip" x="652" y="720" width="76" height="34" rx="17"/>
+  <text class="chip-text" x="676" y="742">FORK</text>
+  <rect class="chip" x="742" y="720" width="108" height="34" rx="17"/>
+  <text class="chip-text" x="764" y="742">RECOVERY</text>
+  <rect class="chip" x="864" y="720" width="130" height="34" rx="17"/>
+  <text class="chip-text" x="884" y="742">MERGE-NOTE</text>
+  <rect class="chip" x="1008" y="720" width="122" height="34" rx="17"/>
+  <text class="chip-text" x="1036" y="742">CHECKPOINT</text>
+
+  <text class="note" x="70" y="822">System prompts derive authority from platform role; CRP remains untrusted carried state.</text>
+</svg>

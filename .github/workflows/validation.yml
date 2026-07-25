@@ -1,0 +1,128 @@
+name: Validation
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  GITLEAKS_VERSION: "8.30.1"
+  GITLEAKS_LINUX_X64_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+
+concurrency:
+  group: "validation-${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: "Validate (${{ matrix.os }}, Python ${{ matrix.python-version }})"
+    runs-on: "${{ matrix.os }}"
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+        python-version:
+          - "3.10"
+          - "3.14"
+    env:
+      CRP_RELEASE_OUTPUT: "${{ github.workspace }}/dist/release-validation"
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUTF8: "1"
+    steps:
+      - name: Check out full history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "${{ matrix.python-version }}"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install validation dependencies
+        run: >-
+          python -m pip install --disable-pip-version-check
+          --require-hashes --requirement requirements-dev.txt
+
+      - name: Lint validation code
+        run: python -m ruff check tools tests
+
+      - name: Check validation-code formatting
+        run: python -m ruff format --check tools tests
+
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Validate repository and reachable history
+        run: python tools/validate_repository.py --root .
+
+      - name: Build deterministic release inputs
+        run: python tools/build_release_assets.py --root .
+
+      - name: Verify deterministic release inputs
+        run: python tools/build_release_assets.py --root . --verify
+
+  gitleaks:
+    name: Gitleaks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out full history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install checksum-pinned Gitleaks
+        shell: bash
+        run: |
+          archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          archive_path="$RUNNER_TEMP/$archive"
+          install_dir="$RUNNER_TEMP/gitleaks-bin"
+          url="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${archive}"
+          mkdir -p "$install_dir"
+          curl --fail --location --silent --show-error "$url" --output "$archive_path"
+          echo "$GITLEAKS_LINUX_X64_SHA256  $archive_path" | sha256sum --check -
+          tar -xzf "$archive_path" -C "$install_dir" gitleaks
+          "$install_dir/gitleaks" version
+
+      - name: Scan all reachable history
+        shell: bash
+        run: |
+          "$RUNNER_TEMP/gitleaks-bin/gitleaks" git . \
+            --log-opts="--all" \
+            --no-banner \
+            --redact \
+            --exit-code 1
+
+  validation:
+    name: Validation
+    if: "${{ always() }}"
+    needs:
+      - validate
+      - gitleaks
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require every validation lane
+        env:
+          MATRIX_RESULT: "${{ needs.validate.result }}"
+          GITLEAKS_RESULT: "${{ needs.gitleaks.result }}"
+        run: |
+          if [ "$MATRIX_RESULT" != "success" ] || [ "$GITLEAKS_RESULT" != "success" ]; then
+            echo "Validation failed: matrix=$MATRIX_RESULT gitleaks=$GITLEAKS_RESULT"
+            exit 1
+          fi

@@ -1,0 +1,290 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/LeonidMajbits/CRP-context-reconstruction-protocol/v1.0.0/schema/crp.schema.json",
+  "title": "Context Reconstruction Protocol 1.0 JSON Profile",
+  "description": "Normative machine-interchange representation of a CRP 1.0 state handoff.",
+  "type": "object",
+  "properties": {
+    "protocol_version": {
+      "description": "CRP major and minor profile version.",
+      "const": "1.0"
+    },
+    "mode": {
+      "description": "Handoff mode.",
+      "type": "string",
+      "enum": [
+        "HOT-RESUME",
+        "COLD-RESUME",
+        "HANDOFF",
+        "TRANSPOSE",
+        "FORK",
+        "RECOVERY",
+        "MERGE-NOTE",
+        "CHECKPOINT"
+      ]
+    },
+    "state": {
+      "description": "Compact lowercase status token.",
+      "$ref": "#/$defs/stateToken"
+    },
+    "world": {
+      "description": "Project context and stable assumptions needed for reconstruction.",
+      "$ref": "#/$defs/stringOrStringArray"
+    },
+    "active": {
+      "description": "Current task or focus.",
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "constraints": {
+      "description": "Active limits, invariants, or working requirements.",
+      "$ref": "#/$defs/stringOrStringArray"
+    },
+    "memory": {
+      "description": "Explicit carry facts, not native model memory.",
+      "$ref": "#/$defs/stringOrStringArray"
+    },
+    "last_result": {
+      "description": "Most recent stable result or completed step.",
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "next_action": {
+      "description": "Proposed continuation step; never fresh authorization for a side effect.",
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "tags": {
+      "description": "Optional indexing or routing labels.",
+      "$ref": "#/$defs/stringOrStringArray"
+    },
+    "lineage": {
+      "description": "Branch, checkpoint, source, or merge references.",
+      "$ref": "#/$defs/stringOrStringArray"
+    },
+    "preserve": {
+      "description": "State that should survive a fork, merge, transpose, or recovery.",
+      "$ref": "#/$defs/stringOrStringArray"
+    },
+    "strip": {
+      "description": "State that should not enter the reconstructed context.",
+      "$ref": "#/$defs/stringOrStringArray"
+    },
+    "delta_goal": {
+      "description": "Branch-specific goal relative to a preserved base.",
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "problem": {
+      "description": "Drift, failure, or inconsistency being corrected.",
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "extensions": {
+      "description": "Namespaced extension data with no additional instruction authority.",
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 32,
+      "propertyNames": {
+        "maxLength": 128,
+        "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)+$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/stringOrStringArray"
+      }
+    }
+  },
+  "required": [
+    "protocol_version",
+    "mode",
+    "state",
+    "active",
+    "next_action"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "HOT-RESUME"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "then": {
+        "required": [
+          "last_result"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "COLD-RESUME"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "then": {
+        "required": [
+          "world",
+          "last_result"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "HANDOFF"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "then": {
+        "required": [
+          "world",
+          "constraints",
+          "last_result"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "TRANSPOSE"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "then": {
+        "required": [
+          "preserve",
+          "strip"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "FORK"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "then": {
+        "required": [
+          "preserve",
+          "delta_goal"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "RECOVERY"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "then": {
+        "required": [
+          "problem"
+        ],
+        "anyOf": [
+          {
+            "required": [
+              "preserve"
+            ]
+          },
+          {
+            "required": [
+              "last_result"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "MERGE-NOTE"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "then": {
+        "required": [
+          "lineage",
+          "preserve",
+          "last_result"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "CHECKPOINT"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "then": {
+        "required": [
+          "last_result"
+        ]
+      }
+    }
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "pattern": "\\S",
+      "not": {
+        "pattern": "[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F-\\u009F\\u00AD\\u0600-\\u0605\\u061C\\u06DD\\u070F\\u0890-\\u0891\\u08E2\\u180E\\u200B-\\u200F\\u2028-\\u202E\\u2060-\\u206F\\uD800-\\uDFFF\\uFEFF\\uFFF9-\\uFFFB]"
+      }
+    },
+    "stateToken": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+    },
+    "stringOrStringArray": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          }
+        }
+      ]
+    }
+  }
+}

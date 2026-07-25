@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security or privacy issue privately
+    url: "https://github.com/LeonidMajbits/CRP-context-reconstruction-protocol/security/advisories/new"
+    about: Do not disclose sensitive security or privacy details in a public issue.

@@ -1,0 +1,51 @@
+name: Protocol issue
+description: Report an ambiguity, inconsistency, or defect in the CRP specification.
+title: "[Protocol]: "
+labels:
+  - protocol
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Use this form for concrete defects in field semantics, modes, examples,
+        templates, or conformance behavior.
+
+  - type: input
+    id: location
+    attributes:
+      label: Affected location
+      description: Link to the file and section or provide the repository path.
+      placeholder: docs/crp-spec-v1.md, section 6.5
+    validations:
+      required: true
+
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed behavior
+      description: Describe the ambiguity or inconsistency precisely.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: State the interpretation or contract you expected.
+    validations:
+      required: true
+
+  - type: textarea
+    id: example
+    attributes:
+      label: Minimal example
+      description: Include the smallest safe CRP block that demonstrates the issue.
+      render: text
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Public-data check
+      options:
+        - label: I removed secrets, personal data, and private project context.
+          required: true

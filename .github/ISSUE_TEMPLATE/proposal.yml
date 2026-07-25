@@ -1,0 +1,54 @@
+name: Protocol proposal
+description: Propose a field, mode, compatibility rule, or specification change.
+title: "[Proposal]: "
+labels:
+  - proposal
+body:
+  - type: input
+    id: summary
+    attributes:
+      label: Proposal
+      description: Summarize the change in one sentence.
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe the concrete interoperability or usability problem.
+    validations:
+      required: true
+
+  - type: textarea
+    id: change
+    attributes:
+      label: Proposed contract change
+      description: Define the field semantics, validation behavior, or mode behavior.
+    validations:
+      required: true
+
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Compatibility impact
+      description: Explain effects on existing CRP text blocks and structured objects.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope checks
+      options:
+        - label: This proposal does not rely on identity override or policy bypass behavior.
+          required: true
+        - label: This proposal does not contain private project context or credentials.
+          required: true
