@@ -193,3 +193,7 @@ Licensed under the [MIT License](LICENSE).
 
 Context Reconstruction Protocol is a user-owned format for serializing selected
 working state and reconstructing it across AI sessions.
+
+## Engineering provenance
+
+Human operator and architect: Leonid Majbits. Repository validation and maintenance: Gemini Operator Lab (ZION Chassis), with bounded external model assistance. Validation results apply only to the tested protocol, tooling and environments.
